@@ -6,7 +6,10 @@ import {EntryPoint, IEntryPoint} from "account-abstraction/core/EntryPoint.sol";
 import {ERC1967Factory} from "solady/utils/ERC1967Factory.sol";
 import {ERC1967FactoryConstants} from "solady/utils/ERC1967FactoryConstants.sol";
 
-import {ShieldAccount, UserOperation, SignatureProof, Transaction, ShieldErrors} from "../src/ShieldAccount.sol";
+import {ShieldAccount, UserOperation, Transaction, ShieldErrors} from "../src/ShieldAccount.sol";
+
+import {SignatureProof, ThresholdSignature} from "../src/ThresholdSignature.sol";
+
 import {Fixture, LoadFixture} from "./utils/Fixtures.sol";
 
 contract ShieldAccountTest is Test {
@@ -14,12 +17,13 @@ contract ShieldAccountTest is Test {
 
     ShieldAccount implementation;
     ERC1967Factory factory = ERC1967Factory(address(1337));
-    EntryPoint entryPoint;
+    EntryPoint entryPoint = EntryPoint(payable(0xFEfC6BAF87cF3684058D62Da40Ff3A795946Ab06));
 
     ShieldAccount shieldAccount;
 
     function setUp() public {
-        entryPoint = new EntryPoint();
+        vm.etch(address(entryPoint), address(new EntryPoint()).code);
+
         implementation = new ShieldAccount();
 
         vm.etch(address(1337), ERC1967FactoryConstants.BYTECODE);
@@ -102,7 +106,7 @@ contract ShieldAccountTest is Test {
             signature: ""
         });
         bytes32 hash = entryPoint.getUserOpHash(userOp);
-        assertTrue(shieldAccount.verifyProof(proof, hash));
+        assertTrue(ThresholdSignature.verifyProof(proof, hash, shieldAccount.root()));
     }
 
     function testVerifyHandleOps() public {
@@ -384,9 +388,7 @@ contract ShieldAccountTest is Test {
         // Extract the SignatureProof structs using the extractSignatureProofs function
         bytes
             memory data = hex"000000000000000000000000000000000000000000000000000000000000002000000000000000000000000000000000000000000000000000000000000000030f134e46927df62809fbf73b1607e63995eac4a02494fa2c5e740b6cbc4bc1ca148595ed601e8bb63d028421d41be512a8bedcf34dece69a1129ede81857e8711ac4974aa563514459e3e1f41c042183b0ecde4931f4ede25b6080541d162b5a258567a41ebbfda0f64b61dd223c56259bd9fa9ad913418d321367d74ea4f50324da690341fd2f464edd277e311a980b7f38e6695580c7211729c84d910a2dd42918ddcbc0b5c998bc6a7b791aac12d039a4bdf0dd3d6f2d6586e749065def832bc2e658a1671a00138cc5b4009d4c09a42a473fd9a5123d5cbf031474e43c4f253c09c45d6769690ab4e59b98f18a9f232eabab602e59e8b22852016137b618634f95dea8392c7e8d0f88a081cd7e6f85e62c4f44707fe9bb1c01d53429133a2c82598e8cd4526b3aec09f7101640d36cf508d14f59a26c60dcb2be917b1254bbc2dde1e8b529099e31553c960600b343b0db6182c98fddf9cc66cd5f1b50e3b2d94f9e4e9216ec27ca92564ad98260804b6371a70790126fdabd42a414b6ade191421f8d4c1ec191fe1b09a0a37bfcab8d1a880c9963ecf8e7b2125491034c3272f6d60aae76576ff37c60aa09a06ac1c5d8b5a8d731f51f1a8b695ee42eb643d2229abcc16eaf72feec4aa2b045f5aa3455ed3c01c3d7ef25cfe0ad730d661da29323102c72b095fcb560533a9b77036a824d0de8a9c481dac79205def13111e5920de67725fab1002073352f7c06fd17798db2ac57c4ae2c992ee8c0afa4027040ffba201857c90422ffd6603a4ed33269a4c2f17d8095b400e4e48527061ad2b38b8b86bd321d972876c281156dca3a01cd9fa15a0f9bff337a08cfb9b817cd04af999237d15db5704c2b6b2d9e46be2d73523ae455afe7faf32851b78a1029c091033c0792e7f2510aaa1a2b155cab409adf58640685b684b73fab9e6629db0a767fb6e102763978fcc775cb179ba62a86f891e817652fbc56bfa51fc42aab24d9376c8923f0e73b406d8720a8844b012864dbfd8908a7a56116e7ef6c273835f395555f21b2c826c5b7fae5b9e5636b6d3766bf9486ee94dec7203d5e0c40412f4b701e2969c75f23a77933c76ae42a36cc8cc5cb82117681b8facdd29010a554fa27a8f139762c9d9e2fc4553b216e76f4710263adeb7649fb1338a118981e1f705be44f256526ec55aa95e2b6fa27a9337f7da49145aa25687a5c41cf51cae47f14b3da5a52429ec0a18fb8ec62b910cde210892aa7575f347cf6b3c994a8cbaaea086bd24a5174549243a3c914100d4bd62a533b3b29e84167726e3d06fb9895931d6fac62813a194958428f04c8f97f5154ce9b3a650f37cd4965f596fae54147525be0291a267f542310360177ee0d93dd1642416a76bfebaa7e5d6196a7d47b17901e549ed5db6ead221a85763524ce6b6604063d8648d17b7b0c9e57dce7227fdd551fffbebd5bfe2a8bae329831ed32a3cb1098d3d7678c7510e77b4e949df0f94da393a33f054fe4dfd36cc17f6c613bcce9d0ebfde1616c28d6fa9a606aad2b5e3d1ae6aefbc8021a4f8e415a073d7e2fb17602c7863395064c122504199735fbe1ec8bf68ff2aea08f901625d47a6586fd8b44d3157273162a95f8a507f2ceaf7a6c401de2fc5fca86bd1fb6c9a92b5ecc5b2b5aa826b71f2a5bf1f6d9418d3cef43b31d9f736bcac5c134c297bd0ce923a213925cd7970c64a4231b73320a82bcc7d69c94d861066ddc1ff7c221a8e8222f18f3321e2603470b4fdfa91400e32de3bfcc8f7346b900d47ffbe985a179411f5614d96afc1c30178d06a0febfd74cbf13ca2e1a7c0c83581e9050b96fe90c2adc9694415709230208499e9b816455ec95a60a88ca4db969da3098be1eb512c87aeafab5c4410ca23ae15ffa95332969cdbf173ce1d039e0404c5c5c3fe292bfe8f7bf522af7ba357605965bf49afa7c8481dd6575a28e0458b6866b5ef7c2807e1121ad5482a5b22f369708518cf36113a6149b4b15eb8544f41901615f7d0e186fc4064ccca355abae72ec37e23df44e1460abdd946840d89309f99fa36a7c120bae21da87d5d919425928e000d87dd828d92842952f0636d421dffaeba6dc1c12541c4b6f1bb9cd0fe86fea6b2d81e2e9a3132f8826cb7540697e33e0a6427b70384084f2589f7f2f4f6905272ab93bb9c2492f9224b5ab4305d96d76c2913710f419f42a76e68d108b68c06d89ff94aa328236310f5711e73aefc5ef981134efd4fdcd200e37ecd339b4a5abfd4b2ad29265a1e178ad0fca0d3acd837366f8def2c6b1";
-        SignatureProof[] memory proofs = shieldAccount.extractSignatureProofs(
-            data
-        );
+        SignatureProof[] memory proofs = abi.decode(data, (SignatureProof[]));
 
         // Assert that the correct number of proofs was extracted
         assertEq(proofs.length, 3, "Invalid number of proofs extracted");
